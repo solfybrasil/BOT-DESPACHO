@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solfy | WhatsApp Bot Status</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <img src="https://solfy.com.br/logo-full.png" alt="Solfy Logo" class="logo" onerror="this.src='https://placehold.co/200x80/0f172a/white?text=SOLFY'">
+            </div>
+            <div class="header-info">
+                <h1>WhatsApp Management</h1>
+                <p>Monitoramento em tempo real do assistente automatizado Solfy.</p>
+            </div>
+        </header>
+
+        <main>
+            <div class="status-card" id="status-card">
+                <div class="status-header">
+                    <div class="status-indicator">
+                        <span class="dot" id="status-dot"></span>
+                        <span id="status-text">Verificando...</span>
+                    </div>
+                    <div class="badge" id="status-badge">API Online</div>
+                </div>
+
+                <div class="status-content">
+                    <div id="connected-view" class="view hidden">
+                        <div class="success-icon">✅</div>
+                        <h2>Bot Conectado!</h2>
+                        <p>O robô está ativo e monitorando novos pedidos no banco de dados.</p>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="label">Polling</span>
+                                <span class="value">Ativo (5s)</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="label">Sessão</span>
+                                <span class="value">solfy-whatsapp</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="qr-view" class="view hidden">
+                        <h2>Conectar WhatsApp</h2>
+                        <p>Escaneie o QR Code abaixo com seu celular para iniciar o serviço.</p>
+                        <div class="qr-container">
+                            <img id="qr-image" src="" alt="WhatsApp QR Code">
+                            <div id="qr-placeholder" class="qr-placeholder">
+                                <div class="loader"></div>
+                                <p>Gerando código...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="disconnected-view" class="view">
+                        <div class="error-icon">⚠️</div>
+                        <h2>Serviço Indisponível</h2>
+                        <p>O servidor está iniciando ou houve uma falha na conexão.</p>
+                        <button onclick="window.location.reload()" class="btn">Tentar Novamente</button>
+                    </div>
+                </div>
+
+                <div class="status-footer">
+                    <p>Última verificação: <span id="last-check">-</span></p>
+                </div>
+            </div>
+
+            <section class="info-section">
+                <h3>O que este Bot faz?</h3>
+                <div class="features-grid">
+                    <div class="feature">
+                        <span class="f-icon">📦</span>
+                        <h4>Novos Pedidos</h4>
+                        <p>Envia confirmação e código de autorização instantaneamente para o cliente.</p>
+                    </div>
+                    <div class="feature">
+                        <span class="f-icon">⭐</span>
+                        <h4>Avaliações</h4>
+                        <p>Solicita feedback automático após a conclusão do serviço.</p>
+                    </div>
+                    <div class="feature">
+                        <span class="f-icon">🛡️</span>
+                        <h4>Segurança</h4>
+                        <p>Garante que o cliente tenha o controle do código de finalização.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Solfy. Sistema de Inteligência em Serviços.</p>
+        </footer>
+    </div>
+
+    <script>
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                const dot = document.getElementById('status-dot');
+                const text = document.getElementById('status-text');
+                const lastCheck = document.getElementById('last-check');
+                
+                // Update text and dots
+                text.textContent = data.message || data.status;
+                lastCheck.textContent = new Date(data.lastCheckedAt).toLocaleTimeString();
+
+                // Reset views
+                document.getElementById('connected-view').classList.add('hidden');
+                document.getElementById('qr-view').classList.add('hidden');
+                document.getElementById('disconnected-view').classList.add('hidden');
+                
+                dot.className = 'dot ' + data.status;
+
+                if (data.status === 'connected') {
+                    document.getElementById('connected-view').classList.remove('hidden');
+                } else if (data.status === 'qr_pending') {
+                    document.getElementById('qr-view').classList.remove('hidden');
+                    if (data.qrCode) {
+                        document.getElementById('qr-image').src = data.qrCode;
+                        document.getElementById('qr-image').style.display = 'block';
+                        document.getElementById('qr-placeholder').style.display = 'none';
+                    } else {
+                        document.getElementById('qr-image').style.display = 'none';
+                        document.getElementById('qr-placeholder').style.display = 'flex';
+                    }
+                } else {
+                    document.getElementById('disconnected-view').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Erro ao buscar status:', err);
+            }
+        }
+
+        setInterval(updateStatus, 3000);
+        updateStatus();
+    </script>
+</body>
+</html>
