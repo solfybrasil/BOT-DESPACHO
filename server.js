@@ -390,14 +390,24 @@ async function handleNewOrder(order) {
     // Mensagem 1: Confirmação
     const msg1 = `Olá! Recebemos seu pedido: *"${order.description}"*. 🚀\n\nEm breve nossos prestadores entrarão em contato. Fique atento a novas mensagens!`;
     
-    // Mensagem 2: Código
+    // Mensagem 2: Instrução
+    const msg2 = `Para sua segurança, a conclusão do serviço depende da sua autorização. Quando decidir contratar o prestador ideal, você precisará informar o código a seguir para ele:`;
+    
+    // Mensagem 3: Código sozinho (fácil de copiar)
     const code = order.id.split('-')[0].toUpperCase();
-    const msg2 = `Este é o código que você usará para autorizar o prestador:\n\n\`${code}\`\n\n⚠️ *IMPORTANTE:* Este código NÃO deve ser entregue agora. Ele serve para você autorizar o prestador escolhido. Encaminhe este código APENAS para o prestador que você decidir contratar.`;
+    const msg3 = `${code}`;
+    
+    // Mensagem 4: Importante
+    const msg4 = `⚠️ *IMPORTANTE:* Este código NÃO deve ser entregue agora. Ele serve para você autorizar o prestador que escolher. Forneça este código APENAS quando decidir contratar ou após a realização do serviço.`;
 
-    console.log(`📲 Enviando mensagens para o cliente: ${target}`);
+    console.log(`📲 Enviando mensagens em lote (4 partes) para o cliente: ${target}`);
     await whatsappClient.sendText(target, msg1);
-    await sleep(2000);
+    await sleep(1500);
     await whatsappClient.sendText(target, msg2);
+    await sleep(1500);
+    await whatsappClient.sendText(target, msg3);
+    await sleep(1500);
+    await whatsappClient.sendText(target, msg4);
     console.log(`✅ Mensagens de novo pedido enviadas!`);
 
     // Atualiza status para 'sent_to_helpers' para seguir o fluxo do app
