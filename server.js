@@ -437,7 +437,7 @@ async function handleCompletedOrder(order) {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 SOLFY WhatsApp Backend - Porta ${PORT}`);
   initWhatsApp();
 });
