@@ -14,7 +14,9 @@ const SESSION_NAME = process.env.SESSION_NAME || 'solfy-whatsapp';
 const POLL_INTERVAL_MS = 5000; // verifica novos pedidos a cada 5 segundos
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌ SUPABASE_URL e SUPABASE_SERVICE_KEY são obrigatórios no .env');
+  console.error('❌ Erro de Configuração: Defina as variáveis de ambiente no Railway ou no arquivo .env');
+  console.error(`   - SUPABASE_URL: ${SUPABASE_URL ? '✅ Carregado' : '❌ Faltando'}`);
+  console.error(`   - SUPABASE_SERVICE_KEY: ${SUPABASE_KEY ? '✅ Carregado' : '❌ Faltando'}`);
   process.exit(1);
 }
 
