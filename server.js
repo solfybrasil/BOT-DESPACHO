@@ -392,7 +392,7 @@ async function handleNewOrder(order) {
     
     // Mensagem 2: Código
     const code = order.id.split('-')[0].toUpperCase();
-    const msg2 = `Este é o código que você usará para autorizar o prestador:\n\n\`\`\`${code}\`\`\`\n\n⚠️ *IMPORTANTE:* Este código NÃO deve ser entregue agora. Ele serve para você autorizar o prestador escolhido. Encaminhe este código APENAS para o prestador que você decidir contratar.`;
+    const msg2 = `Este é o código que você usará para autorizar o prestador:\n\n\`${code}\`\n\n⚠️ *IMPORTANTE:* Este código NÃO deve ser entregue agora. Ele serve para você autorizar o prestador escolhido. Encaminhe este código APENAS para o prestador que você decidir contratar.`;
 
     console.log(`📲 Enviando mensagens para o cliente: ${target}`);
     await whatsappClient.sendText(target, msg1);
