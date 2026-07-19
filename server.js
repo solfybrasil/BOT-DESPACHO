@@ -96,7 +96,6 @@ async function initWhatsApp() {
           '--disable-accelerated-2d-canvas',
           '--no-first-run', 
           '--no-zygote', 
-          '--single-process', 
           '--disable-gpu',
           '--disable-extensions',
           '--js-flags="--max-old-space-size=250"'
@@ -333,7 +332,10 @@ function startPolling() {
           processedIds.add(processKey);
           
           if (order.status === 'new') {
-            await handleNewOrder(order);
+            const success = await handleNewOrder(order);
+            if (!success) {
+              processedIds.delete(processKey);
+            }
           } else if (order.status === 'sent_to_helpers') {
             // Se o pedido foi enviado para os prestadores mas ainda não está vinculado, inicia o despacho
             const isLinked = await checkIfLinked(order.id);
@@ -341,7 +343,10 @@ function startPolling() {
               runPhasedDispatch(order.id, order.category, order.city);
             }
           } else if (order.status === 'completed') {
-            await handleCompletedOrder(order);
+            const success = await handleCompletedOrder(order);
+            if (!success) {
+              processedIds.delete(processKey);
+            }
           }
 
           // Limpa cache antigo para não crescer infinitamente
@@ -355,6 +360,61 @@ function startPolling() {
       console.error('❌ Erro no polling:', err.message);
     }
   }, POLL_INTERVAL_MS);
+}
+
+// ─── Reconexão Automática e Envio Seguro ─────────────────────────────────────
+let isReconnecting = false;
+async function triggerWhatsAppReconnect() {
+  if (isReconnecting) return;
+  isReconnecting = true;
+  console.log('🔄 [Auto-Reconnect] Reiniciando instância do WPPConnect por instabilidade de contexto...');
+  connectionStatus = 'disconnected';
+  if (whatsappClient) {
+    try {
+      await whatsappClient.close();
+    } catch (_) {}
+    whatsappClient = null;
+  }
+  setTimeout(async () => {
+    isReconnecting = false;
+    await initWhatsApp();
+  }, 5000);
+}
+
+async function safeSendText(target, text, maxRetries = 3) {
+  if (!whatsappClient || connectionStatus !== 'connected') {
+    throw new Error('WhatsApp não está conectado.');
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await whatsappClient.sendText(target, text);
+      return true;
+    } catch (err) {
+      console.warn(`⚠️ [sendText] Tentativa ${attempt}/${maxRetries} falhou para ${target}: ${err.message}`);
+      
+      const isDetachedOrClosed = 
+        err.message.includes('detached Frame') ||
+        err.message.includes('Execution context was destroyed') ||
+        err.message.includes('Target closed') ||
+        err.message.includes('Session closed') ||
+        err.message.includes('Protocol error');
+
+      if (isDetachedOrClosed) {
+        console.error('🚨 [Browser Frame Detached] Detectada falha no frame do WPPConnect.');
+        if (attempt === maxRetries) {
+          triggerWhatsAppReconnect();
+          throw err;
+        }
+      }
+
+      if (attempt < maxRetries) {
+        await sleep(2000 * attempt);
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -381,7 +441,7 @@ async function handleNewOrder(order) {
   
   if (connectionStatus !== 'connected' || !whatsappClient) {
     console.log('⚠️ WhatsApp não conectado. Pulando...');
-    return;
+    return false;
   }
 
   try {
@@ -401,20 +461,22 @@ async function handleNewOrder(order) {
     const msg4 = `⚠️ *IMPORTANTE:* Este código NÃO deve ser entregue agora. Ele serve para você autorizar o prestador que escolher. Forneça este código APENAS quando decidir contratar ou após a realização do serviço.`;
 
     console.log(`📲 Enviando mensagens em lote (4 partes) para o cliente: ${target}`);
-    await whatsappClient.sendText(target, msg1);
+    await safeSendText(target, msg1);
     await sleep(1500);
-    await whatsappClient.sendText(target, msg2);
+    await safeSendText(target, msg2);
     await sleep(1500);
-    await whatsappClient.sendText(target, msg3);
+    await safeSendText(target, msg3);
     await sleep(1500);
-    await whatsappClient.sendText(target, msg4);
+    await safeSendText(target, msg4);
     console.log(`✅ Mensagens de novo pedido enviadas!`);
 
     // Atualiza status para 'sent_to_helpers' para seguir o fluxo do app
     await supabase.from('help_requests').update({ status: 'sent_to_helpers' }).eq('id', order.id);
+    return true;
     
   } catch (err) {
     console.error(`❌ Falha ao processar novo pedido ${order.id}:`, err.message);
+    return false;
   }
 }
 
@@ -423,7 +485,7 @@ async function handleCompletedOrder(order) {
 
   if (connectionStatus !== 'connected' || !whatsappClient) {
     console.log('⚠️ WhatsApp não conectado. Pulando...');
-    return;
+    return false;
   }
 
   try {
@@ -432,14 +494,13 @@ async function handleCompletedOrder(order) {
     const msg = `Seu pedido foi concluído! 🎉\n\nPor favor, acesse o nosso site para avaliar o prestador. Obrigado por utilizar a Solfy!`;
 
     console.log(`📲 Enviando mensagem de conclusão para: ${target}`);
-    await whatsappClient.sendText(target, msg);
+    await safeSendText(target, msg);
     console.log(`✅ Mensagem de conclusão enviada!`);
+    return true;
 
-    // Aqui poderíamos atualizar o status para 'closed' ou algo assim,
-    // mas vamos apenas marcar no Set local que já processamos esta conclusão.
-    
   } catch (err) {
     console.error(`❌ Falha ao processar conclusão do pedido ${order.id}:`, err.message);
+    return false;
   }
 }
 
